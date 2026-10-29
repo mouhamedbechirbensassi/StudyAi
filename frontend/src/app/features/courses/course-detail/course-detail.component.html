@@ -1,0 +1,368 @@
+<div class="course-detail-container">
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <a routerLink="/courses" class="btn btn-back" aria-label="Retour à la liste des cours">
+        <span aria-hidden="true">←</span>
+        <span>Mes cours</span>
+      </a>
+      <div class="brand-divider" aria-hidden="true"></div>
+      <div class="topbar-brand">
+        <span class="logo" aria-hidden="true">🎓</span>
+        <h2>Study<span>AI</span></h2>
+      </div>
+    </div>
+
+    <div class="topbar-right">
+      <button
+        type="button"
+        class="btn btn-primary"
+        (click)="showUploadArea.set(!showUploadArea())"
+        [disabled]="isUploading()"
+      >
+        <span aria-hidden="true">+</span>
+        <span>{{ showUploadArea() ? 'Fermer l\'ajout' : 'Ajouter un PDF' }}</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="course-detail-main">
+    <!-- Success Alert -->
+    @if (successMessage()) {
+      <div class="alert alert-success" role="status" aria-live="polite">
+        <span>✅ {{ successMessage() }}</span>
+        <button type="button" class="btn-close" (click)="successMessage.set(null)" aria-label="Fermer">✕</button>
+      </div>
+    }
+
+    <!-- Error Alert -->
+    @if (errorMessage()) {
+      <div class="alert alert-error" role="alert">
+        <span>⚠️ {{ errorMessage() }}</span>
+        <button type="button" class="btn-close" (click)="errorMessage.set(null)" aria-label="Fermer">✕</button>
+      </div>
+    }
+
+    <!-- Not Found State -->
+    @if (courseNotFound()) {
+      <div class="state-card error-card">
+        <div class="state-icon" aria-hidden="true">🔍</div>
+        <h2>Cours introuvable</h2>
+        <p>{{ errorMessage() || 'Ce cours n\'existe pas ou a été supprimé.' }}</p>
+        <a routerLink="/courses" class="btn btn-primary">
+          <span>← Retourner à la liste de mes cours</span>
+        </a>
+      </div>
+    } @else if (isLoading()) {
+      <!-- Loading State -->
+      <div class="state-container">
+        <span class="spinner" aria-hidden="true"></span>
+        <p>Chargement du cours et de ses documents...</p>
+      </div>
+    } @else if (course()) {
+      <!-- Course Hero / Summary Card -->
+      <section class="course-hero-card">
+        <div class="hero-header">
+          <div class="hero-badge">Cours {{ course()!.displayNumber || course()!.id }}</div>
+          <span class="count-pill">
+            <strong>{{ documentsCount() }}</strong> {{ documentsCount() > 1 ? 'documents PDF associés' : 'document PDF associé' }}
+          </span>
+        </div>
+
+        <h1 class="hero-title">{{ course()!.title }}</h1>
+
+        <div class="hero-meta">
+          <span class="meta-item">
+            <span class="meta-label">Créé le :</span>
+            <span class="meta-value">{{ formatDate(course()!.createdAt) }}</span>
+          </span>
+          @if (course()!.updatedAt) {
+            <span class="meta-item">
+              <span class="meta-label">Mis à jour le :</span>
+              <span class="meta-value">{{ formatDate(course()!.updatedAt) }}</span>
+            </span>
+          }
+        </div>
+
+        <div class="hero-description">
+          <h3>Description du cours</h3>
+          <p>{{ course()!.description || 'Aucune description fournie pour ce cours.' }}</p>
+        </div>
+      </section>
+
+      <!-- Upload Dropzone (Toggled or Direct) -->
+      @if (showUploadArea()) {
+        <section class="upload-section">
+          <div class="upload-box">
+            <input
+              #fileInput
+              type="file"
+              accept=".pdf,application/pdf"
+              class="hidden-file-input"
+              (change)="onFileSelected($event)"
+            />
+
+            @if (uploadErrorMessage()) {
+              <div class="alert alert-error upload-alert" role="alert">
+                <span>⚠️ {{ uploadErrorMessage() }}</span>
+                <button type="button" class="btn-close" (click)="uploadErrorMessage.set(null)" aria-label="Fermer">✕</button>
+              </div>
+            }
+
+            <div class="upload-icon" aria-hidden="true">📤</div>
+            <h3>Ajouter un nouveau document PDF / Chapitre</h3>
+            <p>
+              Sélectionnez un support de cours au format PDF. L'ajout d'un nouveau document n'écrase pas vos autres documents existants.
+            </p>
+
+            <div class="upload-rules">
+              <span class="rule-badge">✓ Format .pdf uniquement</span>
+              <span class="rule-badge">✓ Taille maximale 10 Mo</span>
+              <span class="rule-badge">✓ Extraction automatique du texte</span>
+            </div>
+
+            <div class="upload-buttons">
+              <button
+                type="button"
+                class="btn btn-primary btn-lg"
+                (click)="fileInput.click()"
+                [disabled]="isUploading()"
+              >
+                @if (isUploading()) {
+                  <span class="spinner-small" aria-hidden="true"></span>
+                  <span>Téléversement et extraction en cours...</span>
+                } @else {
+                  <span aria-hidden="true">📎</span>
+                  <span>Sélectionner un fichier PDF</span>
+                }
+              </button>
+
+              <button
+                type="button"
+                class="btn btn-secondary"
+                (click)="showUploadArea.set(false)"
+                [disabled]="isUploading()"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        </section>
+      }
+
+      <!-- Documents / Chapters Section -->
+      <section class="documents-section">
+        <div class="section-topbar">
+          <div class="section-title-group">
+            <h2>Chapitres & Documents PDF</h2>
+            <span class="section-subtitle">
+              Tous les documents associés à ce cours pour l'analyse IA et les révisions.
+            </span>
+          </div>
+
+          @if (!showUploadArea()) {
+            <button
+              type="button"
+              class="btn btn-secondary btn-sm"
+              (click)="showUploadArea.set(true)"
+            >
+              <span aria-hidden="true">+</span>
+              <span>Ajouter un PDF</span>
+            </button>
+          }
+        </div>
+
+        @if (isLoadingDocuments()) {
+          <div class="state-container">
+            <span class="spinner" aria-hidden="true"></span>
+            <p>Chargement des documents...</p>
+          </div>
+        } @else if (!hasDocuments()) {
+          <!-- Empty Documents State -->
+          <div class="empty-docs-card">
+            <div class="empty-icon" aria-hidden="true">📑</div>
+            <h3>Aucun document PDF pour ce cours</h3>
+            <p>
+              Vous n'avez pas encore associé de document à ce cours. Ajoutez votre premier PDF (chapitre, polycopié, exercices) pour activer l'analyse textuelle StudyAI.
+            </p>
+            <button
+              type="button"
+              class="btn btn-primary"
+              (click)="showUploadArea.set(true)"
+            >
+              <span aria-hidden="true">+</span>
+              <span>Ajouter un premier document PDF</span>
+            </button>
+          </div>
+        } @else {
+          <!-- Documents List / Cards -->
+          <div class="documents-list">
+            @for (doc of documents(); track doc.id) {
+              <article class="doc-item-card">
+                <div class="doc-icon" aria-hidden="true">📄</div>
+
+                <div class="doc-info">
+                  <div class="doc-header-row">
+                    <h4 class="doc-title" [title]="doc.originalFilename">
+                      {{ doc.originalFilename }}
+                    </h4>
+                    <span class="status-badge" [ngClass]="getStatusBadgeClass(doc.processingStatus)">
+                      {{ getStatusLabel(doc) }}
+                    </span>
+                  </div>
+                  <div class="doc-details">
+                    <span class="doc-size">{{ formatFileSize(doc.fileSize) }}</span>
+                    <span class="detail-separator">•</span>
+                    <span class="doc-date">Ajouté le {{ formatDate(doc.uploadedAt) }}</span>
+                  </div>
+                  @if (doc.processingStatus === 'FAILED' && doc.processingError) {
+                    <div class="doc-error-hint">⚠️ {{ doc.processingError }}</div>
+                  }
+                </div>
+
+                <div class="doc-actions">
+                  <button
+                    type="button"
+                    class="btn btn-action-view"
+                    (click)="openTextViewer(doc)"
+                    title="Consulter le texte extrait de ce document"
+                  >
+                    <span aria-hidden="true">👁️</span>
+                    <span>Consulter le texte</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    class="btn btn-action-delete"
+                    (click)="confirmDeleteDocument(doc)"
+                    title="Supprimer ce document du cours"
+                  >
+                    <span aria-hidden="true">🗑️</span>
+                    <span>Supprimer</span>
+                  </button>
+                </div>
+              </article>
+            }
+          </div>
+        }
+      </section>
+    }
+  </main>
+
+  <!-- Modal: Extracted Text Viewer -->
+  @if (viewingDocument()) {
+    <div class="modal-backdrop" (click)="closeTextViewer()">
+      <div
+        class="modal-card text-viewer-modal"
+        (click)="$event.stopPropagation()"
+        role="dialog"
+        aria-label="Contenu textuel extrait"
+      >
+        <div class="modal-header">
+          <div class="viewer-header-info">
+            <span class="doc-tag">PDF</span>
+            <h3 class="viewer-filename" [title]="viewingDocument()!.originalFilename">
+              {{ viewingDocument()!.originalFilename }}
+            </h3>
+          </div>
+          <button type="button" class="btn-close" (click)="closeTextViewer()" aria-label="Fermer">✕</button>
+        </div>
+
+        <div class="viewer-toolbar">
+          <span class="char-count-pill">
+            {{ (viewingDocument()!.extractedText || '').length }} caractères extraits
+          </span>
+
+          @if (viewingDocument()!.extractedText) {
+            <button
+              type="button"
+              class="btn-copy"
+              (click)="copyExtractedText()"
+              [class.copied]="copiedText()"
+            >
+              @if (copiedText()) {
+                <span>✓ Copié dans le presse-papier</span>
+              } @else {
+                <span>📋 Copier le texte</span>
+              }
+            </button>
+          }
+        </div>
+
+        <div class="viewer-body">
+          @if (isLoadingText()) {
+            <div class="viewer-loading">
+              <span class="spinner-small primary-spinner" aria-hidden="true"></span>
+              <span>Chargement du texte extrait...</span>
+            </div>
+          } @else if (viewingDocument()!.extractedText) {
+            <pre class="extracted-text-content">{{ viewingDocument()!.extractedText }}</pre>
+          } @else {
+            <div class="empty-text-state">
+              <span aria-hidden="true">⚠️</span>
+              <p>Aucun texte brut n'a pu être extrait de ce document (document scanné sans OCR ou document vide).</p>
+            </div>
+          }
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="closeTextViewer()">
+            Fermer
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Modal: Delete Document Confirmation -->
+  @if (deletingDocument()) {
+    <div class="modal-backdrop" (click)="cancelDeleteDocument()">
+      <div
+        class="modal-card delete-confirm-modal"
+        (click)="$event.stopPropagation()"
+        role="dialog"
+        aria-label="Confirmer la suppression du document"
+      >
+        <div class="modal-header">
+          <h3 class="danger-title">Supprimer le document</h3>
+          <button type="button" class="btn-close" (click)="cancelDeleteDocument()" aria-label="Fermer">✕</button>
+        </div>
+
+        <div class="delete-body">
+          <div class="delete-icon" aria-hidden="true">⚠️</div>
+          <p>
+            Êtes-vous certain de vouloir supprimer le document
+            <strong>"{{ deletingDocument()!.originalFilename }}"</strong> ?
+          </p>
+          <p class="warning-text">
+            Cette action est irréversible. Le fichier PDF physique et son texte extrait seront définitivement supprimés, sans affecter les autres documents de ce cours.
+          </p>
+        </div>
+
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            (click)="cancelDeleteDocument()"
+            [disabled]="isDeleting()"
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            class="btn btn-danger"
+            (click)="onDeleteDocument()"
+            [disabled]="isDeleting()"
+          >
+            @if (isDeleting()) {
+              <span class="spinner-small" aria-hidden="true"></span>
+              <span>Suppression...</span>
+            } @else {
+              <span>Supprimer définitivement</span>
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

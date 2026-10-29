@@ -1,0 +1,66 @@
+<div class="auth-container">
+  <div class="auth-card">
+    <div class="brand-header">
+      <div class="brand-logo">🎓</div>
+      <h1 class="brand-title">Study<span>AI</span></h1>
+      <p class="brand-subtitle">Connectez-vous à votre espace étudiant</p>
+    </div>
+
+    @if (errorMessage()) {
+      <div class="alert alert-error" role="alert">
+        <span>⚠️ {{ errorMessage() }}</span>
+      </div>
+    }
+
+    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="auth-form" novalidate>
+      <div class="form-group">
+        <label for="email">Adresse email</label>
+        <input
+          id="email"
+          type="email"
+          formControlName="email"
+          placeholder="etudiant@studyai.com"
+          [class.is-invalid]="loginForm.get('email')?.invalid && loginForm.get('email')?.touched"
+        />
+        @if (loginForm.get('email')?.invalid && loginForm.get('email')?.touched) {
+          <div class="field-error">
+            @if (loginForm.get('email')?.errors?.['required']) {
+              <span>L'adresse email est requise.</span>
+            }
+            @if (loginForm.get('email')?.errors?.['email']) {
+              <span>Veuillez saisir une adresse email valide.</span>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="form-group">
+        <label for="password">Mot de passe</label>
+        <input
+          id="password"
+          type="password"
+          formControlName="password"
+          placeholder="••••••••"
+          [class.is-invalid]="loginForm.get('password')?.invalid && loginForm.get('password')?.touched"
+        />
+        @if (loginForm.get('password')?.invalid && loginForm.get('password')?.touched) {
+          <div class="field-error">
+            <span>Le mot de passe est requis.</span>
+          </div>
+        }
+      </div>
+
+      <button type="submit" class="btn btn-primary" [disabled]="isLoading()">
+        @if (isLoading()) {
+          <span class="spinner"></span> Connexion en cours...
+        } @else {
+          Se connecter
+        }
+      </button>
+    </form>
+
+    <div class="auth-footer">
+      <p>Pas encore de compte ? <a routerLink="/register">Créer un compte</a></p>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,23 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:studyai_test_db;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=MySQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+
+application:
+  jwt:
+    secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+    expiration-ms: 3600000
+  cors:
+    allowed-origins: http://localhost:4200
+  upload:
+    dir: target/test-uploads
+  ai-service:
+    url: ${AI_SERVICE_URL:http://localhost:8000}
+    connect-timeout-ms: 3000
+    read-timeout-ms: 5000

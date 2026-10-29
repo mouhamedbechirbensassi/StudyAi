@@ -1,0 +1,250 @@
+<div class="courses-container">
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <a routerLink="/dashboard" class="btn btn-back" aria-label="Retour au tableau de bord">
+        <span aria-hidden="true">←</span>
+        <span>Tableau de bord</span>
+      </a>
+      <div class="brand-divider" aria-hidden="true"></div>
+      <div class="topbar-brand">
+        <span class="logo" aria-hidden="true">🎓</span>
+        <h2>Study<span>AI</span></h2>
+      </div>
+    </div>
+
+    <div class="topbar-right">
+      <button type="button" class="btn btn-primary" (click)="openCreateModal()">
+        <span aria-hidden="true">+</span>
+        <span>Nouveau cours</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="courses-main">
+    <!-- Success Alert -->
+    @if (successMessage()) {
+      <div class="alert alert-success" role="status" aria-live="polite">
+        <span>✅ {{ successMessage() }}</span>
+        <button type="button" class="btn-close" (click)="successMessage.set(null)" aria-label="Fermer">✕</button>
+      </div>
+    }
+
+    <!-- Error Alert -->
+    @if (errorMessage() && modalMode() === 'none') {
+      <div class="alert alert-error" role="alert">
+        <span>⚠️ {{ errorMessage() }}</span>
+        <button type="button" class="btn btn-sm btn-outline" (click)="loadCourses()">Réessayer</button>
+      </div>
+    }
+
+    <!-- Page Header & Counter -->
+    <section class="page-header">
+      <div class="header-content">
+        <h1>Mes Cours</h1>
+        <p>Cliquez sur un cours pour consulter ses chapitres PDF, en ajouter de nouveaux et explorer le texte extrait.</p>
+      </div>
+      <div class="header-badge">
+        <span class="count-pill">
+          <strong>{{ courseCount() }}</strong> {{ courseCount() > 1 ? 'cours enregistrés' : 'cours enregistré' }}
+        </span>
+      </div>
+    </section>
+
+    <!-- Main Content States -->
+    @if (isLoading()) {
+      <div class="state-container loading-state">
+        <span class="spinner" aria-hidden="true"></span>
+        <p>Chargement de vos cours...</p>
+      </div>
+    } @else if (!hasCourses()) {
+      <div class="empty-state-card">
+        <div class="empty-icon" aria-hidden="true">📚</div>
+        <h3>Aucun cours pour le moment</h3>
+        <p>Vous n'avez pas encore créé de cours. Commencez par ajouter votre premier cours pour y rattacher vos documents PDF de cours.</p>
+        <button type="button" class="btn btn-primary btn-lg" (click)="openCreateModal()">
+          <span aria-hidden="true">+</span>
+          <span>Créer mon premier cours</span>
+        </button>
+      </div>
+    } @else {
+      <!-- Courses Grid -->
+      <div class="courses-grid">
+        @for (course of courses(); track course.id) {
+          <article
+            class="course-card"
+            (click)="goToCourse(course.id)"
+            (keydown.enter)="goToCourse(course.id)"
+            tabindex="0"
+            role="link"
+            [attr.aria-label]="'Ouvrir le cours ' + course.title"
+          >
+            <div class="course-card-header">
+              <div class="course-icon" aria-hidden="true">📖</div>
+              <div class="course-header-meta">
+                <span class="course-id">Cours {{ course.displayNumber || course.id }}</span>
+                <span class="course-date">{{ formatDate(course.createdAt) }}</span>
+              </div>
+            </div>
+
+            <div class="course-card-body">
+              <h3 class="course-title">{{ course.title }}</h3>
+              <p class="course-desc">
+                {{ course.description || 'Aucune description fournie.' }}
+              </p>
+
+              <!-- Document Count Indicator -->
+              <div class="course-doc-badge">
+                @if (course.documentsCount && course.documentsCount > 0) {
+                  <span class="doc-pill doc-pill-attached" title="Documents PDF associés">
+                    <span aria-hidden="true">📄</span>
+                    <span class="doc-pill-name">
+                      <strong>{{ course.documentsCount }}</strong> {{ course.documentsCount > 1 ? 'documents PDF' : 'document PDF' }}
+                    </span>
+                  </span>
+                } @else if (course.hasDocument) {
+                  <span class="doc-pill doc-pill-attached" title="Document PDF associé">
+                    <span aria-hidden="true">📄</span>
+                    <span class="doc-pill-name">{{ course.documentFilename || '1 document PDF' }}</span>
+                  </span>
+                } @else {
+                  <span class="doc-pill doc-pill-none">
+                    <span aria-hidden="true">📎</span>
+                    <span>Aucun support PDF</span>
+                  </span>
+                }
+              </div>
+            </div>
+
+            <div class="course-card-footer" (click)="$event.stopPropagation()">
+              <button
+                type="button"
+                class="btn-action btn-edit"
+                (click)="openEditModal(course, $event)"
+                title="Modifier le cours"
+              >
+                <span>✏️ Modifier</span>
+              </button>
+              <button
+                type="button"
+                class="btn-action btn-delete"
+                (click)="openDeleteModal(course, $event)"
+                title="Supprimer le cours"
+              >
+                <span>🗑️ Supprimer</span>
+              </button>
+            </div>
+          </article>
+        }
+      </div>
+    }
+  </main>
+
+  <!-- Modal: Create / Edit Course -->
+  @if (modalMode() === 'create' || modalMode() === 'edit') {
+    <div class="modal-backdrop" (click)="closeModal()">
+      <div class="modal-card" (click)="$event.stopPropagation()" role="dialog" [attr.aria-label]="modalMode() === 'create' ? 'Créer un cours' : 'Modifier le cours'">
+        <div class="modal-header">
+          <h2>{{ modalMode() === 'create' ? 'Créer un nouveau cours' : 'Modifier le cours' }}</h2>
+          <button type="button" class="btn-close" (click)="closeModal()" aria-label="Fermer">✕</button>
+        </div>
+
+        @if (errorMessage()) {
+          <div class="modal-alert alert-error" role="alert">
+            <span>⚠️ {{ errorMessage() }}</span>
+          </div>
+        }
+
+        <form (ngSubmit)="onSubmit()" novalidate>
+          <div class="form-group">
+            <label for="courseTitle">Titre du cours <span class="required">*</span></label>
+            <input
+              id="courseTitle"
+              type="text"
+              name="title"
+              [ngModel]="formTitle()"
+              (ngModelChange)="formTitle.set($event)"
+              (blur)="titleTouched.set(true)"
+              placeholder="Ex: Algèbre linéaire, Histoire contemporaine..."
+              maxlength="150"
+              class="form-control"
+              [class.input-error]="titleTouched() && !isTitleValid()"
+              required
+              autofocus
+            />
+            @if (titleErrorMessage()) {
+              <span class="error-feedback">{{ titleErrorMessage() }}</span>
+            }
+          </div>
+
+          <div class="form-group">
+            <div class="label-with-counter">
+              <label for="courseDescription">Description <span class="optional">(facultative)</span></label>
+              <span class="char-counter">{{ formDescription().length }}/2000</span>
+            </div>
+            <textarea
+              id="courseDescription"
+              name="description"
+              [ngModel]="formDescription()"
+              (ngModelChange)="formDescription.set($event)"
+              placeholder="Décrivez les objectifs, le contenu ou les chapitres de ce cours..."
+              maxlength="2000"
+              rows="4"
+              class="form-control textarea"
+            ></textarea>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" (click)="closeModal()" [disabled]="isSubmitting()">
+              Annuler
+            </button>
+            <button type="submit" class="btn btn-primary" [disabled]="isSubmitting() || (titleTouched() && !isTitleValid())">
+              @if (isSubmitting()) {
+                <span class="spinner-small" aria-hidden="true"></span>
+                <span>Enregistrement...</span>
+              } @else {
+                <span>{{ modalMode() === 'create' ? 'Créer le cours' : 'Enregistrer les modifications' }}</span>
+              }
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- Modal: Delete Confirmation -->
+  @if (modalMode() === 'delete' && selectedCourse()) {
+    <div class="modal-backdrop" (click)="closeModal()">
+      <div class="modal-card delete-modal" (click)="$event.stopPropagation()" role="dialog" aria-label="Confirmer la suppression">
+        <div class="modal-header">
+          <h2 class="danger-title">Supprimer le cours</h2>
+          <button type="button" class="btn-close" (click)="closeModal()" aria-label="Fermer">✕</button>
+        </div>
+
+        <div class="delete-body">
+          <div class="delete-icon" aria-hidden="true">⚠️</div>
+          <p>
+            Êtes-vous certain de vouloir supprimer le cours <strong>"{{ selectedCourse()!.title }}"</strong> ?
+          </p>
+          <p class="warning-text">
+            Cette action est irréversible. Toutes les données associées à ce cours, y compris l'ensemble de ses documents PDF et textes extraits, seront définitivement supprimées.
+          </p>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="closeModal()" [disabled]="isSubmitting()">
+            Annuler
+          </button>
+          <button type="button" class="btn btn-danger" (click)="onConfirmDelete()" [disabled]="isSubmitting()">
+            @if (isSubmitting()) {
+              <span class="spinner-small" aria-hidden="true"></span>
+              <span>Suppression...</span>
+            } @else {
+              <span>Supprimer définitivement</span>
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>
